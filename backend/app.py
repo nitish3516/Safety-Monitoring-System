@@ -17,7 +17,8 @@ CORS(app)
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
-MODEL_PATH = PROJECT_ROOT / "archive" / "results_yolov8n_100e" / "kaggle" / "working" / "runs" / "detect" / "train" / "weights" / "best.pt"
+DEFAULT_MODEL_PATH = PROJECT_ROOT / "archive" / "results_yolov8n_100e" / "kaggle" / "working" / "runs" / "detect" / "train" / "weights" / "best.pt"
+MODEL_PATH = Path(os.environ.get("MODEL_PATH", str(DEFAULT_MODEL_PATH))).expanduser()
 LOGS_DIR = BASE_DIR / "logs"
 LOG_FILE = LOGS_DIR / "violations.json"
 SETTINGS_FILE = BASE_DIR / "settings.json"
@@ -68,7 +69,7 @@ DEFAULT_SETTINGS = {
     "autoExcelBackup": False,
 }
 
-model = YOLO(str(MODEL_PATH))
+model = YOLO(str(MODEL_PATH)) if MODEL_PATH.exists() else None
 os.makedirs(LOGS_DIR, exist_ok=True)
 ACTIVE_VIOLATION_SIGNATURE = None
 LOGGED_VIOLATION_SESSIONS = set()
@@ -357,6 +358,12 @@ def get_status():
 @app.route("/detect", methods=["POST"])
 def detect():
     global ACTIVE_VIOLATION_SIGNATURE
+
+    if model is None:
+        return jsonify({
+            "error": f"Model file not found at {MODEL_PATH}",
+            "hint": "Set the MODEL_PATH environment variable to a valid .pt file on the server.",
+        }), 500
 
     file = request.files.get("image")
     if not file:
