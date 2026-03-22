@@ -38,6 +38,11 @@ backend/settings.json
 *.pth
 runs/
 archive.zip
+!archive/results_yolov8n_100e/kaggle/working/runs/
+!archive/results_yolov8n_100e/kaggle/working/runs/detect/
+!archive/results_yolov8n_100e/kaggle/working/runs/detect/train/
+!archive/results_yolov8n_100e/kaggle/working/runs/detect/train/weights/
+!archive/results_yolov8n_100e/kaggle/working/runs/detect/train/weights/best.pt
 
 # Local generated media
 *.jpg
