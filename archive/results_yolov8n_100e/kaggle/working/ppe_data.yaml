@@ -1,0 +1,3 @@
+{names: [Hardhat, Mask, NO-Hardhat, NO-Mask, NO-Safety Vest, Person, Safety Cone,
+    Safety Vest, machinery, vehicle], nc: 10, test: 'C:/Users/HP/OneDrive/Desktop/PPE_Project/archive/css-data\test',
+  train: 'C:/Users/HP/OneDrive/Desktop/PPE_Project/archive/css-data\train', val: 'C:/Users/HP/OneDrive/Desktop/PPE_Project/archive/css-data\valid'}
