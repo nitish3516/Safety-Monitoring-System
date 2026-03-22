@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { API_BASE } from "@/lib/api";
 import { AppSettings, loadSettings } from "@/lib/settings";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Camera, Square, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
@@ -67,7 +68,7 @@ export default function LiveDetection() {
   useEffect(() => {
     const syncSettings = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:5000/settings");
+        const res = await fetch(`${API_BASE}/settings`);
         if (!res.ok) return;
         const data = await res.json();
         setSettings((prev) => ({ ...prev, ...data }));
@@ -109,7 +110,7 @@ export default function LiveDetection() {
     formData.append("allowViolationLog", String(allowViolationLogRef.current));
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/detect", {
+      const res = await fetch(`${API_BASE}/detect`, {
         method: "POST",
         body: formData,
       });
@@ -202,7 +203,7 @@ export default function LiveDetection() {
     const sessionId = cameraSessionRef.current;
     cameraSessionRef.current = null;
     if (sessionId) {
-      fetch("http://127.0.0.1:5000/camera-session/end", {
+      fetch(`${API_BASE}/camera-session/end`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cameraSessionId: sessionId }),

@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { deleteViolation, fetchViolations } from "@/lib/api";
+import { API_BASE, deleteViolation, fetchViolations } from "@/lib/api";
 import { Search, Download, Trash2, Calendar } from "lucide-react";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -219,7 +219,7 @@ export default function Violations() {
                 <td>{v.detected || "-"}</td>
                 <td>
                   {v.image ? (
-                    <img src={`http://127.0.0.1:5000/${v.image}`} className="w-20 rounded" />
+                    <img src={`${API_BASE}/${v.image}`} className="w-20 rounded" />
                   ) : (
                     "-"
                   )}
