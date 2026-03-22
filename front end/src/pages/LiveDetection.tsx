@@ -115,7 +115,14 @@ export default function LiveDetection() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Detection request failed");
+      if (!res.ok) {
+        let message = "Detection request failed";
+        try {
+          const payload = await res.json();
+          message = payload.error || payload.details || message;
+        } catch {}
+        throw new Error(message);
+      }
       const data: DetectionResponse = await res.json();
       setDetections(data.detections ?? []);
       setMissingItems(data.missing ?? []);
@@ -127,7 +134,7 @@ export default function LiveDetection() {
       setError("");
     } catch (err) {
       console.error("Backend error:", err);
-      setError("Could not reach detection backend.");
+      setError(err instanceof Error ? err.message : "Could not reach detection backend.");
     } finally {
       requestInFlightRef.current = false;
     }

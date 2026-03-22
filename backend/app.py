@@ -337,6 +337,17 @@ ensure_json_file(STATUS_FILE, {
 })
 
 
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({
+        "service": "Safety Monitoring Backend",
+        "status": "ok",
+        "modelLoaded": model is not None,
+        "modelPath": str(MODEL_PATH),
+        "endpoints": ["/status", "/settings", "/detect", "/violations"],
+    })
+
+
 @app.route("/settings", methods=["GET"])
 def get_settings():
     return jsonify(load_settings())
@@ -386,7 +397,15 @@ def detect():
     height, width = frame.shape[:2]
 
     conf_threshold = confidence_threshold_from_settings(settings)
-    results = model.predict(frame, imgsz=640, conf=conf_threshold, iou=0.5, verbose=False)
+    try:
+        results = model.predict(frame, imgsz=640, conf=conf_threshold, iou=0.5, verbose=False)
+    except Exception as exc:
+        return jsonify({
+            "error": "Detection failed during model inference.",
+            "details": str(exc),
+            "modelLoaded": model is not None,
+            "modelPath": str(MODEL_PATH),
+        }), 500
 
     raw_detections = []
     for r in results:
