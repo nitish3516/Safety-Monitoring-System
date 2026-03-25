@@ -1,4 +1,5 @@
 export const STORAGE_KEY = "ppe_settings";
+export const SETTINGS_UPDATED_EVENT = "ppe-settings-updated";
 
 export type AppSettings = {
   systemName: string;
@@ -70,4 +71,5 @@ export function loadSettings(): AppSettings {
 
 export function saveSettingsLocally(settings: AppSettings) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  window.dispatchEvent(new CustomEvent(SETTINGS_UPDATED_EVENT, { detail: settings }));
 }

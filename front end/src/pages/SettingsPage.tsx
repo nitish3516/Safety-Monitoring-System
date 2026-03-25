@@ -13,11 +13,18 @@ const tabs = [
   { id: "data", label: "Data & Storage", icon: Database },
 ];
 
-function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+const unsupportedRuleKeys = new Set([
+  "protectiveGloves",
+  "safetyGoggles",
+  "safetyBoots",
+]);
+
+function Toggle({ enabled, onToggle, disabled = false }: { enabled: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
     <button
       onClick={onToggle}
-      className={`w-12 h-7 rounded-full transition-colors flex-shrink-0 ${enabled ? "bg-success" : "bg-muted"}`}
+      disabled={disabled}
+      className={`w-12 h-7 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${enabled ? "bg-success" : "bg-muted"}`}
     >
       <span className={`block h-5 w-5 rounded-full bg-white shadow transform transition-transform mx-1 ${enabled ? "translate-x-5" : "translate-x-0"}`} />
     </button>
@@ -231,7 +238,6 @@ export default function SettingsPage() {
                 </div>
                 {[
                   { label: "Record Violations", desc: "Save snapshots of detected violations", key: "recordViolations" },
-                  { label: "Auto Capture", desc: "Auto-screenshot on detection", key: "autoCapture" },
                   { label: "Auto Screenshot", desc: "Capture on violation detection", key: "autoScreenshot" },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between border-b border-border pb-5 last:border-0">
@@ -282,9 +288,16 @@ export default function SettingsPage() {
                   <div key={item.label} className="flex items-center justify-between border-b border-border pb-5 last:border-0">
                     <div>
                       <p className="font-medium text-foreground">{item.label}</p>
-                      <p className="text-sm text-muted-foreground">{item.desc}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.desc}
+                        {unsupportedRuleKeys.has(item.key) ? " Current model does not support live detection for this item." : ""}
+                      </p>
                     </div>
-                    <Toggle enabled={s[item.key as keyof AppSettings] as boolean} onToggle={() => set(item.key as keyof AppSettings, !(s[item.key as keyof AppSettings] as boolean) as never)} />
+                    <Toggle
+                      enabled={s[item.key as keyof AppSettings] as boolean}
+                      disabled={unsupportedRuleKeys.has(item.key)}
+                      onToggle={() => set(item.key as keyof AppSettings, !(s[item.key as keyof AppSettings] as boolean) as never)}
+                    />
                   </div>
                 ))}
                 <div>

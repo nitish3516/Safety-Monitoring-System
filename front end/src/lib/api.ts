@@ -23,6 +23,7 @@ export type DetectionStatus = {
     sensitivity: number;
     sensitivityLevel: string;
     recordViolations: boolean;
+    autoScreenshot?: boolean;
   };
   unsupported_rules?: string[];
 };
@@ -34,6 +35,7 @@ export type ViolationEntry = {
   image: string | null;
   detected?: string[];
   required?: string[];
+  confidence?: number;
 };
 
 export const API_BASE =

@@ -110,6 +110,9 @@ def load_violations():
         if "id" not in item:
             item["id"] = f"violation-{index + 1}-{uuid.uuid4().hex[:8]}"
             changed = True
+        if "confidence" not in item:
+            item["confidence"] = None
+            changed = True
         normalized.append(item)
     if changed:
         save_json(LOG_FILE, normalized)
@@ -150,6 +153,13 @@ def confidence_threshold_from_settings(settings: dict) -> float:
 
     adjustment = (50 - sensitivity) / 200
     return max(0.25, min(0.7, base + adjustment))
+
+
+def compliance_score(detected_labels: set[str], required_ppe: list[str]) -> float:
+    if not required_ppe:
+        return 100.0
+    present = sum(1 for item in required_ppe if item in detected_labels)
+    return round((present / len(required_ppe)) * 100, 2)
 
 
 def iou(box_a: dict, box_b: dict) -> float:
@@ -442,7 +452,9 @@ def detect():
     required_ppe = current_required_ppe(settings)
     visible_labels = allowed_detection_labels(settings)
     missing = compute_missing_items(detected_labels, required_ppe)
-    violation = len(missing) > 0
+    compliance = compliance_score(detected_labels, required_ppe)
+    threshold = int(settings.get("complianceThreshold", DEFAULT_SETTINGS["complianceThreshold"]))
+    violation = len(missing) > 0 and compliance < threshold
     image_path = None
 
     current_signature = violation_signature(missing, detections) if violation else None
@@ -466,23 +478,28 @@ def detect():
 
     if should_log_violation:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        image_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-        image_path_full = LOGS_DIR / image_name
-        cv2.imwrite(str(image_path_full), frame)
+        if settings.get("autoScreenshot", True):
+            image_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            image_path_full = LOGS_DIR / image_name
+            cv2.imwrite(str(image_path_full), frame)
+            saved_image_path = f"logs/{image_name}"
+        else:
+            saved_image_path = None
 
         log_entry = {
             "id": f"violation-{uuid.uuid4().hex}",
             "time": timestamp,
             "missing": missing,
-            "image": f"logs/{image_name}",
+            "image": saved_image_path,
             "detected": sorted(detected_labels),
             "required": required_ppe,
+            "confidence": max((item["confidence"] for item in filtered_detections), default=0),
         }
 
         data = load_violations()
         data.append(log_entry)
         save_json(LOG_FILE, data)
-        image_path = f"logs/{image_name}"
+        image_path = saved_image_path
 
     if violation:
         ACTIVE_VIOLATION_SIGNATURE = current_signature
@@ -503,7 +520,9 @@ def detect():
             "sensitivity": settings.get("sensitivity"),
             "sensitivityLevel": settings.get("sensitivityLevel"),
             "recordViolations": settings.get("recordViolations"),
+            "autoScreenshot": settings.get("autoScreenshot"),
         },
+        "compliance": compliance,
         "unsupported_rules": ["protectiveGloves", "safetyGoggles", "safetyBoots"],
     }
     save_json(STATUS_FILE, status_payload)

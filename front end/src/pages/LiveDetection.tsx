@@ -1,6 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { API_BASE } from "@/lib/api";
-import { AppSettings, loadSettings } from "@/lib/settings";
+import { AppSettings, loadSettings, SETTINGS_UPDATED_EVENT } from "@/lib/settings";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Camera, Square, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -24,6 +24,7 @@ type DetectionResponse = {
     sensitivity: number;
     sensitivityLevel: string;
     recordViolations: boolean;
+    autoScreenshot?: boolean;
   };
 };
 
@@ -33,6 +34,7 @@ export default function LiveDetection() {
   const cameraSessionRef = useRef<string | null>(null);
   const allowViolationLogRef = useRef(true);
   const requestInFlightRef = useRef(false);
+  const settingsRef = useRef<AppSettings>(loadSettings());
   const [cameraActive, setCameraActive] = useState(false);
   const [error, setError] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -47,6 +49,32 @@ export default function LiveDetection() {
   const speakerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const detectInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMobile = useIsMobile();
+
+  const cameraConstraintsFromSettings = (current: AppSettings) => {
+    const resolutionMap: Record<string, { width: number; height: number }> = {
+      "480p": { width: 640, height: 480 },
+      "720p": { width: 1280, height: 720 },
+      "1080p": { width: 1920, height: 1080 },
+      "1440p": { width: 2560, height: 1440 },
+      "4K": { width: 3840, height: 2160 },
+    };
+
+    const target = resolutionMap[current.resolution] ?? resolutionMap["1080p"];
+    return isMobile
+      ? {
+          facingMode: "environment",
+          width: { ideal: target.width },
+          height: { ideal: target.height },
+        }
+      : {
+          width: { ideal: target.width },
+          height: { ideal: target.height },
+        };
+  };
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -75,16 +103,29 @@ export default function LiveDetection() {
       } catch {}
     };
 
-    const handleStorage = () => setSettings(loadSettings());
-    window.addEventListener("storage", handleStorage);
+    const handleLocalSettings = () => setSettings(loadSettings());
+    window.addEventListener("storage", handleLocalSettings);
+    window.addEventListener(SETTINGS_UPDATED_EVENT, handleLocalSettings as EventListener);
+    window.addEventListener("focus", handleLocalSettings);
     syncSettings();
 
-    return () => window.removeEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleLocalSettings);
+      window.removeEventListener(SETTINGS_UPDATED_EVENT, handleLocalSettings as EventListener);
+      window.removeEventListener("focus", handleLocalSettings);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!settings.criticalSound) {
+      setSpeakerOn(false);
+    }
+  }, [settings.criticalSound]);
 
   const sendFrameToBackend = useCallback(async () => {
     if (!videoRef.current || requestInFlightRef.current) return;
     requestInFlightRef.current = true;
+    const currentSettings = settingsRef.current;
 
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
@@ -103,7 +144,7 @@ export default function LiveDetection() {
 
     const formData = new FormData();
     formData.append("image", blob, "frame.jpg");
-    formData.append("settings", JSON.stringify(settings));
+    formData.append("settings", JSON.stringify(currentSettings));
     if (cameraSessionRef.current) {
       formData.append("cameraSessionId", cameraSessionRef.current);
     }
@@ -138,7 +179,7 @@ export default function LiveDetection() {
     } finally {
       requestInFlightRef.current = false;
     }
-  }, [settings]);
+  }, []);
 
   useEffect(() => {
     if (speakerOn && cameraActive && missingItems.length > 0) {
@@ -172,8 +213,10 @@ export default function LiveDetection() {
           : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       allowViolationLogRef.current = true;
 
+      setSpeakerOn(settings.criticalSound);
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: isMobile ? { facingMode: "environment" } : true,
+        video: cameraConstraintsFromSettings(settings),
       });
 
       if (videoRef.current) {
@@ -189,7 +232,7 @@ export default function LiveDetection() {
     } catch {
       setError("Camera access denied.");
     }
-  }, [isMobile, sendFrameToBackend]);
+  }, [settings, isMobile, sendFrameToBackend]);
 
   const stopCamera = useCallback(() => {
     if (videoRef.current?.srcObject) {
@@ -267,7 +310,7 @@ export default function LiveDetection() {
             className={`relative overflow-hidden w-full flex items-center justify-center ${
               isFullscreen
                 ? "h-screen rounded-none bg-black border-0"
-                : "h-[62vh] rounded-[10px] bg-white border border-slate-200"
+                : "h-[72vh] rounded-[10px] bg-white border border-slate-200"
             }`}
           >
             <video
@@ -377,6 +420,12 @@ export default function LiveDetection() {
             </p>
             <p className="text-sm text-muted-foreground">
               Save screenshots: {(settingsUsed?.recordViolations ?? settings.recordViolations) ? "On" : "Off"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Resolution: {settings.resolution}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Critical sound: {settings.criticalSound ? "On" : "Off"}
             </p>
           </div>
 

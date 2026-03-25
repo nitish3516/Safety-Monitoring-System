@@ -9,9 +9,9 @@ type ViolationRow = {
   id: string;
   date: string;
   time: string;
-  type: string;
   image: string | null;
-  detected: string;
+  violations: string;
+  confidence: string;
 };
 
 function normalizeDateInput(value: string) {
@@ -27,9 +27,9 @@ function formatViolations(data: Awaited<ReturnType<typeof fetchViolations>>): Vi
       id: v.id ?? `legacy:${v.time}::${v.image ?? ""}::${index}`,
       date: v.time.split(" ")[0] ?? "",
       time: v.time.split(" ")[1] ?? "",
-      type: v.missing.join(", "),
       image: v.image,
-      detected: (v.detected ?? []).join(", "),
+      violations: v.missing.join(", "),
+      confidence: typeof v.confidence === "number" ? `${v.confidence.toFixed(2)}%` : "-",
     }));
 }
 
@@ -74,16 +74,16 @@ export default function Violations() {
   }, []);
 
   const filtered = violations.filter((v) => {
-    const textMatch = `${v.type} ${v.detected}`.toLowerCase().includes(search.toLowerCase());
+    const textMatch = `${v.violations} ${v.confidence}`.toLowerCase().includes(search.toLowerCase());
     const fromMatch = !fromDate || v.date >= fromDate;
     const toMatch = !toDate || v.date <= toDate;
     return textMatch && fromMatch && toMatch;
   });
 
   const exportToExcel = () => {
-    const header = "S.No,Date,Time,Violation,Detected\n";
+    const header = "S.No,Date,Time,Violations,Confidence\n";
     const rows = filtered.map((v, i) =>
-      `${i + 1},${v.date},${v.time},${v.type},${v.detected}`
+      `${i + 1},${v.date},${v.time},${v.violations},${v.confidence}`
     ).join("\n");
 
     const blob = new Blob([header + rows], { type: "text/csv" });
@@ -196,35 +196,38 @@ export default function Violations() {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-card rounded-xl border overflow-x-auto">
+        <table className="w-full min-w-[980px] text-sm">
           <thead>
             <tr>
-              <th className="p-3">S.No</th>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Violation</th>
-              <th>Detected</th>
-              <th>Image</th>
-              <th>Delete</th>
+              <th className="p-3 text-left">S.No</th>
+              <th className="text-left">Date</th>
+              <th className="text-left">Time</th>
+              <th className="text-left">Violations</th>
+              <th className="text-left">Confidence</th>
+              <th className="text-left min-w-[220px]">Image</th>
+              <th className="text-left">Delete</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((v, i) => (
               <tr key={v.id} className="border-t">
-                <td className="p-3">{i + 1}</td>
-                <td>{v.date}</td>
-                <td>{v.time}</td>
-                <td className="text-red-500">{v.type || "-"}</td>
-                <td>{v.detected || "-"}</td>
-                <td>
+                <td className="p-3 align-middle text-left">{i + 1}</td>
+                <td className="py-3 align-middle text-left">{v.date}</td>
+                <td className="py-3 align-middle text-left">{v.time}</td>
+                <td className="py-3 align-middle text-left text-red-500">{v.violations || "-"}</td>
+                <td className="py-3 align-middle text-left">{v.confidence}</td>
+                <td className="py-3 align-middle text-left">
                   {v.image ? (
-                    <img src={`${API_BASE}/${v.image}`} className="w-20 rounded" />
+                    <img
+                      src={`${API_BASE}/${v.image}`}
+                      className="h-20 w-36 max-w-none rounded-lg border border-slate-200 object-cover"
+                    />
                   ) : (
                     "-"
                   )}
                 </td>
-                <td>
+                <td className="py-3 align-middle text-left">
                   <button
                     onClick={() => handleDelete(v.id)}
                     disabled={deletingId === v.id}
