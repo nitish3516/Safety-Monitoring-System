@@ -3,12 +3,13 @@ import {
   Bell, Settings, X, Shield, ChevronDown, ChevronUp, LogOut, User
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { logoutUser } from "@/lib/auth";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Live Detection", url: "/live-detection", icon: Video },
   { title: "Violations", url: "/violations", icon: AlertTriangle },
   { title: "Workers", url: "/workers", icon: Users },
@@ -28,6 +29,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    logoutUser();
     toast.success("Logged out successfully");
     navigate("/login");
   };
@@ -68,7 +70,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
             <NavLink
               key={item.title}
               to={item.url}
-              end={item.url === "/"}
+              end={item.url === "/dashboard"}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               activeClassName="bg-primary/10 text-primary font-medium border-l-2 border-primary"
               onClick={onClose}

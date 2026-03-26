@@ -36,10 +36,6 @@ NEGATIVE_LABELS = {
     "Safety Vest": "NO-Safety Vest",
 }
 
-ALWAYS_VISIBLE_LABELS = {
-    "Person",
-}
-
 DEFAULT_SETTINGS = {
     "systemName": "AI Workplace Safety Monitor",
     "timezone": "UTC+5:30",
@@ -59,6 +55,7 @@ DEFAULT_SETTINGS = {
     "autoScreenshot": True,
     "retentionDays": "90",
     "resolution": "1080p",
+    "personDetection": True,
     "hardHat": True,
     "safetyMask": True,
     "safetyVest": True,
@@ -128,7 +125,10 @@ def current_required_ppe(settings: dict) -> list[str]:
 
 
 def allowed_detection_labels(settings: dict) -> set[str]:
-    allowed = set(ALWAYS_VISIBLE_LABELS)
+    allowed = set()
+
+    if settings.get("personDetection", True):
+        allowed.add("Person")
 
     for setting_key, model_label in PPE_SETTING_TO_MODEL_LABEL.items():
         if settings.get(setting_key):
@@ -186,14 +186,8 @@ def dedupe_detections(raw_detections: list[dict]) -> list[dict]:
     sorted_detections = sorted(raw_detections, key=lambda item: item["confidence"], reverse=True)
 
     for detection in sorted_detections:
-        if detection["label"] == "Person":
-            threshold = 0.35
-        elif detection["label"] == "Safety Vest":
-            threshold = 0.3
-        else:
-            threshold = 0.5
         duplicate = any(
-            existing["label"] == detection["label"] and iou(existing, detection) >= threshold
+            is_duplicate_detection(existing, detection)
             for existing in filtered
         )
         if not duplicate:
@@ -215,14 +209,71 @@ def intersection_over_area(inner_box: list[float], outer_box: list[float]) -> fl
     return intersection / area if area > 0 else 0.0
 
 
-def suppress_false_positive_ppe(detections: list[dict]) -> list[dict]:
-    person_boxes = [item["xyxy"] for item in detections if item["label"] == "Person"]
-    if not person_boxes:
-        return [item for item in detections if item["label"] not in {"Safety Vest", "Hardhat", "Mask"}]
+def box_center_distance_ratio(box_a: list[float], box_b: list[float]) -> float:
+    ax1, ay1, ax2, ay2 = box_a
+    bx1, by1, bx2, by2 = box_b
+    acx, acy = (ax1 + ax2) / 2, (ay1 + ay2) / 2
+    bcx, bcy = (bx1 + bx2) / 2, (by1 + by2) / 2
+    avg_w = max(1.0, ((ax2 - ax1) + (bx2 - bx1)) / 2)
+    avg_h = max(1.0, ((ay2 - ay1) + (by2 - by1)) / 2)
+    return max(abs(acx - bcx) / avg_w, abs(acy - bcy) / avg_h)
 
-    filtered: list[dict] = []
+
+def is_duplicate_detection(existing: dict, detection: dict) -> bool:
+    if existing["label"] != detection["label"]:
+        return False
+
+    overlap_score = max(
+        iou(existing, detection),
+        intersection_over_area(existing["xyxy"], detection["xyxy"]),
+        intersection_over_area(detection["xyxy"], existing["xyxy"]),
+    )
+
+    if detection["label"] == "Person":
+        center_distance = box_center_distance_ratio(existing["xyxy"], detection["xyxy"])
+        return overlap_score >= 0.45 or (overlap_score >= 0.28 and center_distance <= 0.22)
+
+    if detection["label"] == "Safety Vest":
+        center_distance = box_center_distance_ratio(existing["xyxy"], detection["xyxy"])
+        return overlap_score >= 0.5 or (overlap_score >= 0.3 and center_distance <= 0.18)
+
+    return overlap_score >= 0.5
+
+
+def suppress_false_positive_ppe(detections: list[dict]) -> list[dict]:
+    filtered_people: list[dict] = []
+    for detection in detections:
+        if detection["label"] != "Person":
+            continue
+
+        x1, y1, x2, y2 = detection["xyxy"]
+        width = max(0.0, x2 - x1)
+        height = max(0.0, y2 - y1)
+        area = width * height
+        aspect_ratio = height / max(width, 1.0)
+        center_x = (x1 + x2) / 2
+        edge_margin = min(x1, max(0.0, 640 - x2))
+        near_full_frame = width >= 610 and height >= 610
+        very_small = area < 35000 or width < 110 or height < 170
+        weak_confidence = detection["confidence"] < 80
+        implausible_shape = aspect_ratio < 1.2
+        too_edge_bound = edge_margin < 18 and detection["confidence"] < 88
+        off_center_small = (center_x < 120 or center_x > 520) and area < 90000
+
+        if near_full_frame or very_small or weak_confidence or implausible_shape or too_edge_bound or off_center_small:
+            continue
+
+        filtered_people.append(detection)
+
+    person_boxes = [item["xyxy"] for item in filtered_people]
+    if not person_boxes:
+        return []
+
+    filtered: list[dict] = list(filtered_people)
     for detection in detections:
         label = detection["label"]
+        if label == "Person":
+            continue
         if label == "Safety Vest":
             overlaps_person = any(iou({"xyxy": detection["xyxy"]}, {"xyxy": person_box}) >= 0.12 for person_box in person_boxes)
             mostly_inside_person = any(intersection_over_area(detection["xyxy"], person_box) >= 0.75 for person_box in person_boxes)
@@ -429,10 +480,14 @@ def detect():
                 "xyxy": [x1, y1, x2, y2],
             })
 
+    if not settings.get("personDetection", True):
+        raw_detections = [item for item in raw_detections if item["label"] != "Person"]
+
     filtered_detections = dedupe_detections(raw_detections)
     filtered_detections = suppress_false_positive_ppe(filtered_detections)
     tracking_session_key = camera_session_id or "default"
     filtered_detections = stabilize_detections(tracking_session_key, filtered_detections)
+    filtered_detections = dedupe_detections(filtered_detections)
     detections = []
     detected_labels = set()
     for index, item in enumerate(filtered_detections):

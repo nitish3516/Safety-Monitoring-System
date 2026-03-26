@@ -278,6 +278,7 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground mb-6">Configure which PPE items should be monitored</p>
               <div className="space-y-5">
                 {[
+                  { label: "Person", desc: "Show person detection in live view", key: "personDetection" },
                   { label: "Hard Hat", desc: "Head protection in construction zones", key: "hardHat" },
                   { label: "Safety Mask", desc: "Face protection in all zones", key: "safetyMask" },
                   { label: "High-Vis Safety Vest", desc: "Visibility vest in outdoor/warehouse areas", key: "safetyVest" },

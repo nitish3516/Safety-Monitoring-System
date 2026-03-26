@@ -20,6 +20,7 @@ export type AppSettings = {
   autoScreenshot: boolean;
   retentionDays: string;
   resolution: string;
+  personDetection: boolean;
   hardHat: boolean;
   safetyMask: boolean;
   safetyVest: boolean;
@@ -50,6 +51,7 @@ export function getDefaultSettings(): AppSettings {
     autoScreenshot: true,
     retentionDays: "90",
     resolution: "1080p",
+    personDetection: true,
     hardHat: true,
     safetyMask: true,
     safetyVest: true,

@@ -165,7 +165,10 @@ export default function LiveDetection() {
         throw new Error(message);
       }
       const data: DetectionResponse = await res.json();
-      setDetections(data.detections ?? []);
+      const nextDetections = settingsRef.current.personDetection
+        ? (data.detections ?? [])
+        : (data.detections ?? []).filter((item) => item.label !== "Person");
+      setDetections(nextDetections);
       setMissingItems(data.missing ?? []);
       setRequiredItems(data.required ?? []);
       setSettingsUsed(data.settings_used ?? null);
