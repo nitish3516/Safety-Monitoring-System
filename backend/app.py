@@ -251,23 +251,19 @@ def suppress_false_positive_ppe(detections: list[dict]) -> list[dict]:
         height = max(0.0, y2 - y1)
         area = width * height
         aspect_ratio = height / max(width, 1.0)
-        center_x = (x1 + x2) / 2
-        edge_margin = min(x1, max(0.0, 640 - x2))
         near_full_frame = width >= 610 and height >= 610
-        very_small = area < 35000 or width < 110 or height < 170
-        weak_confidence = detection["confidence"] < 80
+        very_small = area < 18000 or width < 85 or height < 130
+        weak_confidence = detection["confidence"] < 55
         implausible_shape = aspect_ratio < 1.2
-        too_edge_bound = edge_margin < 18 and detection["confidence"] < 88
-        off_center_small = (center_x < 120 or center_x > 520) and area < 90000
 
-        if near_full_frame or very_small or weak_confidence or implausible_shape or too_edge_bound or off_center_small:
+        if near_full_frame or very_small or weak_confidence or implausible_shape:
             continue
 
         filtered_people.append(detection)
 
     person_boxes = [item["xyxy"] for item in filtered_people]
     if not person_boxes:
-        return []
+        return detections
 
     filtered: list[dict] = list(filtered_people)
     for detection in detections:
@@ -275,9 +271,9 @@ def suppress_false_positive_ppe(detections: list[dict]) -> list[dict]:
         if label == "Person":
             continue
         if label == "Safety Vest":
-            overlaps_person = any(iou({"xyxy": detection["xyxy"]}, {"xyxy": person_box}) >= 0.12 for person_box in person_boxes)
-            mostly_inside_person = any(intersection_over_area(detection["xyxy"], person_box) >= 0.75 for person_box in person_boxes)
-            strong_confidence = detection["confidence"] >= 88
+            overlaps_person = any(iou({"xyxy": detection["xyxy"]}, {"xyxy": person_box}) >= 0.08 for person_box in person_boxes)
+            mostly_inside_person = any(intersection_over_area(detection["xyxy"], person_box) >= 0.6 for person_box in person_boxes)
+            strong_confidence = detection["confidence"] >= 65
             if not (overlaps_person and mostly_inside_person and strong_confidence):
                 continue
         elif label == "Hardhat":

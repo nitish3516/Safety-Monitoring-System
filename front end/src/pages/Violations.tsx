@@ -28,7 +28,7 @@ function formatViolations(data: Awaited<ReturnType<typeof fetchViolations>>): Vi
       date: v.time.split(" ")[0] ?? "",
       time: v.time.split(" ")[1] ?? "",
       image: v.image,
-      violations: v.missing.join(", "),
+      violations: v.missing.map((item) => `No ${item}`).join(", "),
       confidence: typeof v.confidence === "number" ? `${v.confidence.toFixed(2)}%` : "-",
     }));
 }

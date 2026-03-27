@@ -3,8 +3,9 @@ import {
   Bell, Settings, X, Shield, ChevronDown, ChevronUp, LogOut, User
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { fetchViolations } from "@/lib/api";
 import { logoutUser } from "@/lib/auth";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -26,7 +27,33 @@ interface AppSidebarProps {
 
 export function AppSidebar({ open, onClose }: AppSidebarProps) {
   const [userExpanded, setUserExpanded] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadNotificationCount = async () => {
+      try {
+        const violations = await fetchViolations();
+        if (!cancelled) {
+          setNotificationCount(violations.length);
+        }
+      } catch {
+        if (!cancelled) {
+          setNotificationCount(0);
+        }
+      }
+    };
+
+    loadNotificationCount();
+    const timer = setInterval(loadNotificationCount, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   const handleLogout = () => {
     logoutUser();
@@ -76,7 +103,12 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
               onClick={onClose}
             >
               <item.icon className="h-5 w-5" />
-              <span>{item.title}</span>
+              <span className="flex-1">{item.title}</span>
+              {item.title === "Notifications" && notificationCount > 0 && (
+                <span className="min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center">
+                  {notificationCount > 99 ? "99+" : notificationCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
