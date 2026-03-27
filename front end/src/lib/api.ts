@@ -42,13 +42,13 @@ export const API_BASE =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "") || "http://127.0.0.1:5000";
 
 export async function fetchStatus(): Promise<DetectionStatus> {
-  const res = await fetch(`${API_BASE}/status`);
+  const res = await fetch(`${API_BASE}/status`, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch status");
   return res.json();
 }
 
 export async function fetchViolations(): Promise<ViolationEntry[]> {
-  const res = await fetch(`${API_BASE}/violations`);
+  const res = await fetch(`${API_BASE}/violations`, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch violations");
   return res.json();
 }

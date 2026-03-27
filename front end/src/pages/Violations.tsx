@@ -68,8 +68,10 @@ export default function Violations() {
     };
 
     load();
+    const timer = setInterval(load, 3000);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, []);
 
