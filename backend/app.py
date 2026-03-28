@@ -116,6 +116,13 @@ def load_violations():
     return normalized
 
 
+def load_live_violations():
+    return [
+        item for item in load_violations()
+        if item.get("source") == "live"
+    ]
+
+
 def current_required_ppe(settings: dict) -> list[str]:
     required = []
     for setting_key, model_label in PPE_SETTING_TO_MODEL_LABEL.items():
@@ -323,7 +330,7 @@ def stabilize_detections(session_key: str, detections: list[dict]) -> list[dict]
             updated_detection = dict(detection)
             if best_index is not None and best_iou >= 0.55:
                 used_previous.add(best_index)
-                alpha = 0.18 if detection["label"] == "Person" else 0.28
+                alpha = 0.72 if detection["label"] == "Person" else 0.78
                 updated_detection["xyxy"] = smooth_box(
                     previous[best_index]["xyxy"],
                     detection["xyxy"],
@@ -545,6 +552,7 @@ def detect():
             "detected": sorted(detected_labels),
             "required": required_ppe,
             "confidence": max((item["confidence"] for item in filtered_detections), default=0),
+            "source": "live" if camera_session_id else "test",
         }
 
         data = load_violations()
@@ -596,7 +604,7 @@ def end_camera_session():
 
 @app.route("/violations", methods=["GET"])
 def get_violations():
-    return jsonify(load_violations())
+    return jsonify(load_live_violations())
 
 
 @app.route("/violations/<violation_id>", methods=["DELETE"])
