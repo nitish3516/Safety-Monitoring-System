@@ -35,6 +35,7 @@ export default function LiveDetection() {
   const allowViolationLogRef = useRef(true);
   const requestInFlightRef = useRef(false);
   const settingsRef = useRef<AppSettings>(loadSettings());
+  const previousSettingsRef = useRef<AppSettings>(loadSettings());
   const [cameraActive, setCameraActive] = useState(false);
   const [error, setError] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -75,6 +76,23 @@ export default function LiveDetection() {
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+
+  useEffect(() => {
+    const previous = previousSettingsRef.current;
+    const loggingBehaviorChanged =
+      previous.autoScreenshot !== settings.autoScreenshot ||
+      previous.recordViolations !== settings.recordViolations;
+
+    if (cameraActive && loggingBehaviorChanged) {
+      cameraSessionRef.current =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      allowViolationLogRef.current = true;
+    }
+
+    previousSettingsRef.current = settings;
+  }, [cameraActive, settings]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
