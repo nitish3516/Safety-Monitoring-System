@@ -5,7 +5,7 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { fetchViolations } from "@/lib/api";
 import { logoutUser } from "@/lib/auth";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -28,6 +28,7 @@ interface AppSidebarProps {
 export function AppSidebar({ open, onClose }: AppSidebarProps) {
   const [userExpanded, setUserExpanded] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+  const sidebarRef = useRef<HTMLElement | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -55,6 +56,21 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!sidebarRef.current) return;
+      if (sidebarRef.current.contains(event.target as Node)) return;
+      onClose();
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [open, onClose]);
+
   const handleLogout = () => {
     logoutUser();
     toast.success("Logged out successfully");
@@ -71,6 +87,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
       )}
       
       <aside
+        ref={sidebarRef}
         className={`fixed top-0 left-0 z-50 h-full w-64 bg-card border-r border-border transform transition-transform duration-300 ease-in-out flex flex-col ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
