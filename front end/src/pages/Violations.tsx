@@ -19,6 +19,11 @@ function normalizeDateInput(value: string) {
   return cleaned;
 }
 
+function toExcelCell(value: string, forceText = false) {
+  const normalized = forceText ? `="${value}"` : value;
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
 function formatViolations(data: Awaited<ReturnType<typeof fetchViolations>>): ViolationRow[] {
   return data
     .slice()
@@ -85,10 +90,16 @@ export default function Violations() {
   const exportToExcel = () => {
     const header = "S.No,Date,Time,Violations,Confidence\n";
     const rows = filtered.map((v, i) =>
-      `${i + 1},${v.date},${v.time},${v.violations},${v.confidence}`
+      [
+        toExcelCell(String(i + 1)),
+        toExcelCell(v.date, true),
+        toExcelCell(v.time, true),
+        toExcelCell(v.violations),
+        toExcelCell(v.confidence),
+      ].join(",")
     ).join("\n");
 
-    const blob = new Blob([header + rows], { type: "text/csv" });
+    const blob = new Blob(["\uFEFF", header + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
