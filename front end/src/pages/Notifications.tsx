@@ -23,7 +23,6 @@ export default function Notifications() {
         const items: NotificationItem[] = violations
           .slice()
           .reverse()
-          .slice(0, 10)
           .map((v, index) => ({
             id: v.id ?? `legacy:${v.time}::${v.image ?? ""}::${index}`,
             message: `Violation detected: ${v.missing.join(", ") || "Unknown"}`,
