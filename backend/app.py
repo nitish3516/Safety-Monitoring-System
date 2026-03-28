@@ -258,12 +258,16 @@ def suppress_false_positive_ppe(detections: list[dict]) -> list[dict]:
         height = max(0.0, y2 - y1)
         area = width * height
         aspect_ratio = height / max(width, 1.0)
+        center_x = (x1 + x2) / 2
+        edge_margin = min(x1, max(0.0, 640 - x2))
         near_full_frame = width >= 610 and height >= 610
-        very_small = area < 18000 or width < 85 or height < 130
-        weak_confidence = detection["confidence"] < 55
+        very_small = area < 18000 or width < 78 or height < 125
+        weak_confidence = detection["confidence"] < 52
         implausible_shape = aspect_ratio < 1.2
+        too_edge_bound = edge_margin < 8 and detection["confidence"] < 76
+        off_center_small = (center_x < 85 or center_x > 555) and area < 52000
 
-        if near_full_frame or very_small or weak_confidence or implausible_shape:
+        if near_full_frame or very_small or weak_confidence or implausible_shape or too_edge_bound or off_center_small:
             continue
 
         filtered_people.append(detection)
@@ -279,8 +283,8 @@ def suppress_false_positive_ppe(detections: list[dict]) -> list[dict]:
             continue
         if label == "Safety Vest":
             overlaps_person = any(iou({"xyxy": detection["xyxy"]}, {"xyxy": person_box}) >= 0.08 for person_box in person_boxes)
-            mostly_inside_person = any(intersection_over_area(detection["xyxy"], person_box) >= 0.6 for person_box in person_boxes)
-            strong_confidence = detection["confidence"] >= 65
+            mostly_inside_person = any(intersection_over_area(detection["xyxy"], person_box) >= 0.62 for person_box in person_boxes)
+            strong_confidence = detection["confidence"] >= 68
             if not (overlaps_person and mostly_inside_person and strong_confidence):
                 continue
         elif label == "Hardhat":
