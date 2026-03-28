@@ -10,6 +10,13 @@ type WorkerCard = {
   issues: string[];
 };
 
+function formatIssueLabel(issue: string) {
+  if (issue === "Hardhat") return "No Hard Hat";
+  if (issue === "Mask") return "No Mask";
+  if (issue === "Safety Vest") return "No Vest";
+  return `No ${issue}`;
+}
+
 function getBarColor(score: number) {
   if (score >= 90) return "bg-success";
   if (score >= 75) return "bg-warning";
@@ -84,7 +91,7 @@ export default function Workers() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                {w.issues.length > 0 ? `Current issues: ${w.issues.join(", ")}` : "No active PPE issues"}
+                {w.issues.length > 0 ? `Current issues: ${w.issues.map(formatIssueLabel).join(", ")}` : "No active PPE issues"}
               </p>
             </div>
           ))
